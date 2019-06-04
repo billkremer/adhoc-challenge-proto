@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html>
-
+<style>
+  table {
+    border-collapse:collapse;
+    border-spacing:0;
+  }
+  th, td {
+    border: 1px solid black;
+    padding: 3px 10px 3px 10px;
+  }
+</style>
 <body>
 
   <h1>Ad Hoc Code Challenge:</h1>
@@ -9,164 +18,215 @@
   <label for="fileInput">Choose a file:</label>
   <br />
   <input id="fileInput" type="file"></input>
-  <!-- <button onclick="encode()">Encode</button> -->
   <br />
   <button onclick="decode()">Decode</button>
+  <br />
+  
+  <section>
+    <p>What is the total amount in dollars of debits? 
+      <output id="totalDebitsInDollars"></output>
+    </p>
 
-  <p id="result"></p>
+    <p>What is the total amount in dollars of credits? 
+      <output id="totalCreditsInDollars"></output>
+    </p>
+      
+    <p>How many autopays were started? 
+      <output id="totalAutopaysStarted"></output>
+    </p>
 
-  <output id="list"></output>
+    <p>How many autopays were ended? 
+      <output id="totalAutopaysEnded"></output>
+    </p>
 
+    <p>What is balance of user ID 2456938384156277127? 
+      <output id="balanceOfUser2456"></output>
+    </p>
+  </section>
+  <br />
 
+  <output>
+    <table>
+      <thead>
+        <th>Record type</th>
+        <th>Unix timestamp</th>
+        <th>user ID</th>
+        <th>amount in dollars</th>
+      </thead>
+      <tbody id="fileData">
+<!-- data goes here  -->
+      </tbody>
+    </table>
+  </output>
 
-  <!-- What is the total amount in dollars of debits?
-What is the total amount in dollars of credits?
-How many autopays were started?
-How many autopays were ended?
-What is balance of user ID 2456938384156277127? -->
+   
   <script>
     var reader = new FileReader();
-    var fileeo = '';
+    var dataFile = new ArrayBuffer();
     var file = '';
-  var temp = '';
-
 
     let decode = function () {
       file = document.getElementById("fileInput").files[0]; // FileList input
       console.log(file, typeof(file)); // File object.
 
-
-
       reader.onload = function () {
-        console.log(reader.result);
-           fileeo = reader.result;
+        // console.log(reader.result);
+        dataFile = reader.result;
 
-          console.log(typeof(fileeo)); // string
-
-//         console.log(fileeo.substring(0,4));
-//         console.log(parseInt(fileeo.substring(4),2));
-
-//         console.log(reader.readAsBinaryString);
-
-//         var blob = file.slice(startingByte, endindByte);
-//         reader.readAsBinaryString(blob);
-//         reader.readAsArrayBuffer(fileeo);
-
-//         console.log(reader.readAsArrayBuffer(fileeo));
-
-//       temp = String.fromCharCode.apply(String, reader.readAsArrayBuffer(fileeo));
-
-//         // create an ArrayBuffer with a size in bytes
-//         var buffer = new ArrayBuffer(16);
-
-//         var view = new DataView(buffer);
-//         view.setUint32(1, 4294967295); // (max unsigned 32-bit integer)
-
-//         console.log(view.getUint32(1));
-// // expected output: 4294967295
-
-
-
-
-
-console.log(fileeo.slice(0,4));
-
-
-        test = new Uint8Array(fileeo.slice(0,4));
-        // test = String.fromCharCode(test.toString());
-        // test = test.toString();
+        test = new Uint8Array(dataFile.slice(0,4));
         test = Array.from(test);
-        var t = test.reduce(function (accumulator, currentValue, currentIndex, array) {
+        var t = test.reduce(function (accumulator, currentValue) {
           return accumulator + String.fromCharCode(currentValue);
-        }, '');
-        // version = new Uint8Array(fileeo.slice(4,5))[0];
-        var versionDV = new DataView(fileeo.slice(4, 5));
+        }, ''); 
+        // t === "MPS7"
+        // NOTE, this would normally be it's own function, determining _which_ parser to use.
+
+        var versionDV = new DataView(dataFile.slice(4, 5));
         var version = versionDV.getUint8(0);
-        console.log(version);
+        // console.log('version', version); // 1
 
-          var numRecords = new DataView(fileeo.slice(5,9));
-          var nn = numRecords.getUint32(0);
+        var numRecordsDV = new DataView(dataFile.slice(5,9));
+        var numRecords = numRecordsDV.getUint32(0);
+        // console.log('numRecords', numRecords); // 71
 
-        // var nno = String.fromCharCode(00000071);
-        // console.log(test,t, version, numRecords, nn, nno);
+        // TODO consider abstracting the actual parsing to it's own fn
+        var offset = 9;
+        let log = [];
+        var start = offset;
+        // buildup an array of objects
+        // TODO the provided .dat has numRecords = 71, but 72 actual records.
+        // TODO confirm whether actual records are 71 or 72.
+        for (let i = 0; i <= numRecords; i++) { 
+          let record = {};
 
+          let recTypeDV = new DataView(dataFile.slice(start,start+1));
+          let recType = recTypeDV.getUint8(0); // TODO consider abstracting recType to it's own fn
+          start += 1;
 
-var offset = 9;
-let records = [];
-var start = offset;
-// TODO buildup an array of objects
-for (let i = 0; i <= nn; i++) { // check numrecords
+          // if Debit or Credit will also have an amountInDollars.
+          switch (recType) {
+            case 0:
+              record.recordType = 'Debit';
+              break;
+            case 1:
+              record.recordType = 'Credit';
+              break;
+            case 2:
+              record.recordType = 'StartAutopay';
+              break;
+            case 3:
+              record.recordType = 'EndAutopay';
+              break;
+            default:
+              return; // some error occured.
+              break;
+          }
 
-  let recTypeDV = new DataView(fileeo.slice(start,start+1));
-  let recType = recTypeDV.getUint8(0); // TODO: consider 'Debit' 'Credit', etc.
-  start +=1;
+          let timeStampDV = new DataView(dataFile.slice(start, start+4));
+          record.timeStamp = timeStampDV.getUint32(0);
+          start +=4;
 
-  let timeStampDV = new DataView(fileeo.slice(start, start+4));
-  let timeStamp = timeStampDV.getUint32(0);
-  start +=4;
+          let userIdDV = new DataView(dataFile.slice(start, start+8));
+          record.userId = userIdDV.getBigInt64(0).toString(10);
+          start += 8;
 
-  let userIdDV = new DataView(fileeo.slice(start, start+8));
-  let userId = userIdDV.getBigInt64(0).toString(10);
+          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays#Using_views_with_buffers
+          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays#Typed_array_views
+        
+          if (recType < 2) {
+            let amountInDollarsDV = new DataView(dataFile.slice(start, start+8));
+            record.amountInDollars = amountInDollarsDV.getFloat64();
+            start +=8;
+          }
+          
+          // console.log('inloop', i, record);
+          log.push(record);
+        }
 
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays#Using_views_with_buffers
+        // console.log(log);
+        displayLog(log);
 
+        questionOne(log);
+        questionTwo(log);
+        questionThree(log);
+        questionFour(log);
+        questionFive(log, 2456938384156277127);
 
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays#Typed_array_views
+      } // reader.onload
+      reader.readAsArrayBuffer(file);
 
-  start +=8;
+    } // end of decode function
 
-  // currentRec = fileeo.slice(start,end); // 13 bytes for each record, + 8 if debit or credit
-  console.log('inloop', i, recType, timeStamp, userId);
- 
-  if (recType < 2) {
-    let amountInDollarsDV = new DataView(fileeo.slice(start, start+8));
-    let amountInDollars = amountInDollarsDV.getFloat64();
+    function displayLog(transactionLog) {
+      // put log into table
+      // transactionLog is an array of record objects. {recordType, timeStamp, userId, amountInDollars}
+      let output = [];
+      transactionLog.forEach(function (record) {
+        output.push("<tr><td>", record.recordType,'</td><td>', record.timeStamp,'</td><td>', record.userId,'</td><td>', record.amountInDollars || 'n/a', '</td></tr>');
+      });
 
-    console.log(amountInDollars);
-    start +=8;
-  }
-  
+      document.getElementById('fileData').innerHTML = output.join('');
+    } // end of displayLog
 
-}
+    function questionOne(transactionLog) {
+      // What is the total amount in dollars of debits? $18,203.70
+      let total = transactionLog.reduce(function (total, record) {
+        return (record.recordType === 'Debit') ? total + record.amountInDollars : total 
+      }, 0);
 
-
-
-
-
-
-
-      }
- console.log(fileeo,'as');
-
-      console.log(reader.readAsArrayBuffer(file));
-
-
+      document.getElementById('totalDebitsInDollars').innerHTML = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });;
     }
 
+    function questionTwo(transactionLog) {
+      // What is the total amount in dollars of credits? ? 71 or 72 records?
+      let total = transactionLog.reduce(function (total, record) {
+        return (record.recordType === 'Credit') ? total + record.amountInDollars : total
+      }, 0);
 
-
-
-  function handleFileSelect(evt) {
-    var files = evt.target.files; // FileList object
-
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-      output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
-        f.size, ' bytes, last modified: ',
-        f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
-        '</li>');
+      document.getElementById('totalCreditsInDollars').innerHTML = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     }
-    document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
-  }
 
-  document.getElementById('fileInput').addEventListener('change', handleFileSelect, false);
+    function questionThree(transactionLog) {
+      // How many autopays were started? // 10
+      let count = transactionLog.reduce(function (count, record) {
+        return (record.recordType === 'StartAutopay') ? count+1 : count
+      }, 0);
 
+      document.getElementById('totalAutopaysStarted').innerHTML = count;
+    }
 
+    function questionFour(transactionLog) {
+      // How many autopays were ended? // 8
+      let count = transactionLog.reduce(function (count, record) {
+        return (record.recordType === 'EndAutopay') ? count + 1 : count
+      }, 0);
 
+      document.getElementById('totalAutopaysEnded').innerHTML = count;
+    }
+
+    function questionFive(transactionLog, userId) {
+      // What is balance of user ID 2456938384156277127? // +/- 248 == $0
+      let balance = transactionLog.reduce(function (balance, record) {
+        if (record.userId == userId) {
+          // console.log(record);
+          switch (record.recordType) {
+            case 'Debit':
+              balance = balance - record.amountInDollars;
+              break;
+            case 'Credit':
+              balance = balance + record.amountInDollars
+              break;
+            default:
+              return; // some error occured.
+              break;
+          }
+        }
+        return balance
+      }, 0);
+
+      document.getElementById('balanceOfUser2456').innerHTML = balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' });;
+    }
 
   </script>
-
 </body>
-
 </html>
