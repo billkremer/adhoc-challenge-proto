@@ -48,13 +48,14 @@
   <output>
     <table>
       <thead>
+        <th></th>
         <th>Record type</th>
         <th>Unix timestamp</th>
         <th>user ID</th>
         <th>amount in dollars</th>
       </thead>
       <tbody id="fileData">
-<!-- data goes here  -->
+      <!-- data goes here -->
       </tbody>
     </table>
   </output>
@@ -67,7 +68,7 @@
 
     let decode = function () {
       file = document.getElementById("fileInput").files[0]; // FileList input
-      console.log(file, typeof(file)); // File object.
+      // console.log(file, typeof(file)); // File object.
 
       reader.onload = function () {
         // console.log(reader.result);
@@ -95,8 +96,8 @@
         var start = offset;
         // buildup an array of objects
         // TODO the provided .dat has numRecords = 71, but 72 actual records.
-        // TODO confirm whether actual records are 71 or 72.
-        for (let i = 0; i <= numRecords; i++) { 
+        // TODO confirm whether actual records are 71 or 72. start at 1?
+        for (let i = 0; i < numRecords+1; i++) { 
           let record = {};
 
           let recTypeDV = new DataView(dataFile.slice(start,start+1));
@@ -138,7 +139,7 @@
             record.amountInDollars = amountInDollarsDV.getFloat64();
             start +=8;
           }
-          
+
           // console.log('inloop', i, record);
           log.push(record);
         }
@@ -161,8 +162,8 @@
       // put log into table
       // transactionLog is an array of record objects. {recordType, timeStamp, userId, amountInDollars}
       let output = [];
-      transactionLog.forEach(function (record) {
-        output.push("<tr><td>", record.recordType,'</td><td>', record.timeStamp,'</td><td>', record.userId,'</td><td>', record.amountInDollars || 'n/a', '</td></tr>');
+      transactionLog.forEach(function (record, index) {
+        output.push("<tr><td>", index+1, "</td><td>", record.recordType,'</td><td>', record.timeStamp,'</td><td>', record.userId,'</td><td>', record.amountInDollars || 'n/a', '</td></tr>');
       });
 
       document.getElementById('fileData').innerHTML = output.join('');
