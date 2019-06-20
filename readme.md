@@ -22,7 +22,8 @@ If this were an actual client, I would want secondary confirmation that the 72nd
 
 This can be made apparent by changing line 100 from:
 ```
-        for (let i = 0; i < numRecords; i++) { ```
+        for (let i = 0; i < numRecords; i++) { 
+```
 
 to
 
